@@ -1,0 +1,107 @@
+<%- include('layouts/header.ejs') %>
+<h2 class="mb-4">Hi, <%= user.name || 'User' %></h2>
+
+<div class="row">
+    <div class="col-md-4">
+        <ul class="list-group">
+            <% if (users && users.length > 0) { 
+                for (let i = 0; i < users.length; i++) { %>
+                    <li class="list-group-item list-group-item-dark cursor-pointer user-list" data-id="<%= users[i]._id %>">
+                        <img src="<%= users[i].image ? 'http://localhost:3000/' + users[i].image : 'default-image.png' %>" alt="User Image" width="100" height="100">
+                        <%= users[i].name || 'Unnamed User' %>
+                        <sub class="<%= users[i].is_online == 1 ? 'online-status' : 'offline-status' %>" id="<%= users[i]._id %>-status">
+                            <%= users[i].is_online == 1 ? 'Online' : 'Offline' %>
+                        </sub>
+                    </li>
+            <% } } else { %>
+                <li class="list-group-item">No users available.</li>
+            <% } %>
+        </ul>
+    </div>
+
+    <div class="col-md-8">
+        <h3 class="start-head">Click to start the chat</h3>
+        <div class="chat-section" style="display: none;">
+            <div id="chat-container" >
+
+            </div>
+
+
+
+            <form id="chat-form">
+                <input type="text" name="message" placeholder="Enter your message" id="message" class="border" required>
+                <input type="submit" value="Send Message" class="btn btn-primary">
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="path/to/your/script.js"></script>
+<script>
+    var sender_id = '<%= user._id %>';
+    var receiver_id;
+    var socket = io('/user-namespace', {
+        auth: {
+            token: '<%= user._id %>'
+        }
+    });
+
+    $(document).ready(function() {
+        $('.user-list').click(function() {
+            receiver_id = $(this).data('id');
+            $('.start-head').hide();
+            $('.chat-section').show();
+        });
+
+        // Update user online status
+        socket.on('getOnlineUser', function(data) {
+            console.log(data);
+            $('#' + data.user_id + '-status').text('Online').removeClass('offline-status').addClass('online-status');
+        });
+
+        // Update user offline status
+        socket.on('getOfflineUser', function(data) {
+            console.log(data);
+            $('#' + data.user_id + '-status').text('Offline').removeClass('online-status').addClass('offline-status');
+        });
+
+        // Save chat on form submission
+
+        jQuery(document).ready(function($) {
+        $('#chat-form').submit(function(event) {
+            event.preventDefault();
+            var message = $('#message').val();
+            console.log("Sending message:", message)
+            socket.emit('send message', message, receiver_id);
+
+            $.ajax({
+                url: '/save-chat',
+                type: 'POST',
+                data: {
+                    sender_id: sender_id,
+                    receiver_id: receiver_id,
+                    message: message
+                },
+                success: function(response) {
+                    console.log(response.data.message);
+                    if (response.success) {
+                        $('#message').val(''); // Clear the input
+                        let chat = response.data.message;
+                        let html = `<div class="current-user-chat"><h5>${data.message}</h5></div>`;
+                        $('#chat-container').append(html);
+                    } else {
+                        alert(response.msg);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error:', textStatus, errorThrown); // Log errors
+                    alert('Failed to send message. Please try again.');
+                }
+            });
+        });
+    })});
+</script>
+
+<%- include('layouts/footer.ejs') %>
